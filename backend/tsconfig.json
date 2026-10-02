@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@mulyankan/shared": ["../shared/src/index.ts"],
+      "@mulyankan/database": ["../database/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}

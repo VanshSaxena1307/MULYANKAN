@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Arctic Glass Design System Tokens */
+  --arctic-bg: #F3F8FC;
+  --arctic-surface: #FFFFFF;
+  --arctic-surface-glass: rgba(255, 255, 255, 0.82);
+  --arctic-surface-card: rgba(255, 255, 255, 0.94);
+  --arctic-primary: #2563EB;
+  --arctic-primary-hover: #1D4ED8;
+  --arctic-soft-blue: #60A5FA;
+  --arctic-cyan: #06B6D4;
+  --arctic-text-main: #0F172A;
+  --arctic-text-secondary: #475569;
+  --arctic-text-muted: #94A3B8;
+  --arctic-border: #DCE8F2;
+  --arctic-border-glass: rgba(220, 232, 242, 0.75);
+  --arctic-success: #10B981;
+  --arctic-warning: #F59E0B;
+  --arctic-danger: #EF4444;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--arctic-bg);
+  color: var(--arctic-text-main);
+  font-family: 'Geist', 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+/* Institutional Arctic Glass Utility Classes */
+@layer components {
+  .arctic-glass-header {
+    background-color: var(--arctic-surface-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--arctic-border);
+  }
+
+  .arctic-glass-panel {
+    background-color: var(--arctic-surface-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--arctic-border);
+    box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+  }
+
+  .arctic-interactive-card {
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .arctic-interactive-card:hover {
+    border-color: #BFDBFE;
+    box-shadow: 0 8px 30px -4px rgba(37, 99, 235, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.03);
+    transform: translateY(-1px);
+  }
+}
+
+/* Subtle, clean custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
