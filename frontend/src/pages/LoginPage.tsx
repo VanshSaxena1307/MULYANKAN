@@ -28,10 +28,11 @@ export const LoginPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) {
       setError('Please enter your Username / User ID');
@@ -42,8 +43,16 @@ export const LoginPage: React.FC = () => {
       return;
     }
 
-    login(username.trim());
-    navigate('/teacher');
+    try {
+      setIsLoading(true);
+      setError(null);
+      await login(username.trim(), password);
+      navigate('/teacher');
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const featureCards = [
@@ -282,10 +291,11 @@ export const LoginPage: React.FC = () => {
               {/* Primary Login Button with Blue Gradient */}
               <button
                 type="submit"
-                className="w-full h-10 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#0284C7] hover:from-[#1D4ED8] hover:to-[#0369A1] text-white font-semibold text-xs sm:text-sm shadow-md shadow-blue-500/25 active:translate-y-px transition-all flex items-center justify-center gap-1.5 mt-1"
+                disabled={isLoading}
+                className="w-full h-10 rounded-xl bg-gradient-to-r from-[#2563EB] to-[#0284C7] hover:from-[#1D4ED8] hover:to-[#0369A1] text-white font-semibold text-xs sm:text-sm shadow-md shadow-blue-500/25 active:translate-y-px transition-all flex items-center justify-center gap-1.5 mt-1 disabled:opacity-75 disabled:cursor-not-allowed"
               >
-                <span>Login</span>
-                <ArrowRight className="h-4 w-4" />
+                <span>{isLoading ? 'Authenticating...' : 'Login'}</span>
+                {!isLoading && <ArrowRight className="h-4 w-4" />}
               </button>
 
               {/* OR Divider */}
