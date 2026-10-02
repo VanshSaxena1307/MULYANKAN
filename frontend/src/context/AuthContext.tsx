@@ -22,11 +22,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [targetRole, setTargetRole] = useState<TeacherRole>('Evaluator');
 
-  // Minimal authentication state shell
-  const [currentUser, setCurrentUser] = useState<{ username: string; name: string } | null>({
-    username: 'faculty@abes',
-    name: 'Academic Faculty',
-  });
+  // Initial authentication state must be unauthenticated with null user
+  const [currentUser, setCurrentUser] = useState<{ username: string; name: string } | null>(null);
 
   const requestRoleSwitch = (newRole: TeacherRole) => {
     if (newRole === activeRole) return;
