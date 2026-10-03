@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/base/Button';
 import { Badge } from '../components/base/Badge';
 import { RoleBadge } from '../components/role/RoleBadge';
+import { ProjectEvaluationEditor } from '../components/evaluation/ProjectEvaluationEditor';
 import { useAuth } from '../context/AuthContext';
 import {
   TeacherRole,
@@ -42,13 +43,12 @@ export const TeacherDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [dashboardData, setDashboardData] = useState<TeacherDashboardResponse | null>(null);
 
-  // Filters
-  const [roleFilter, setRoleFilter] = useState<'AUTO' | 'Guide' | 'Evaluator' | 'ALL'>('AUTO');
+  // Search & cohort filters
   const [selectedCohortId, setSelectedCohortId] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
 
-  // Fetch Dashboard Data from Backend API
+  // Fetch Dashboard Data from Backend API with strict server-side role scope
   const fetchDashboardData = useCallback(async () => {
     if (!token) return;
 
@@ -56,7 +56,8 @@ export const TeacherDashboard: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const res = await fetch('/api/teacher/dashboard', {
+      const roleParam = encodeURIComponent(activeRole);
+      const res = await fetch(`/api/teacher/dashboard?role=${roleParam}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -65,6 +66,11 @@ export const TeacherDashboard: React.FC = () => {
       if (res.status === 401) {
         handleUnauthorized('Your session has expired. Please sign in again.');
         return;
+      }
+
+      if (res.status === 403) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Access denied for the requested role.');
       }
 
       if (!res.ok) {
@@ -85,35 +91,24 @@ export const TeacherDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [token, handleUnauthorized, setAvailableRoles]);
+  }, [token, activeRole, handleUnauthorized, setAvailableRoles]);
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Determine effective role filter (by default matches the active operational role from AuthContext)
-  const currentRoleScope: 'Guide' | 'Evaluator' | 'ALL' =
-    roleFilter === 'AUTO' ? activeRole : roleFilter;
-
-  // Filtered projects
+  // Filtered projects (Server has already authorized and filtered by activeRole)
   const filteredProjects = useMemo(() => {
     if (!dashboardData) return [];
 
     let list = dashboardData.projects;
 
-    // 1. Role filter
-    if (currentRoleScope === 'Guide') {
-      list = list.filter((p) => p.isGuide);
-    } else if (currentRoleScope === 'Evaluator') {
-      list = list.filter((p) => p.isEvaluator || p.isDprcMember1 || p.isDprcMember2);
-    }
-
-    // 2. Cohort filter
+    // 1. Cohort filter
     if (selectedCohortId !== 'ALL') {
       list = list.filter((p) => p.academicYearId === selectedCohortId);
     }
 
-    // 3. Search query
+    // 2. Search query
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       list = list.filter((p) => {
@@ -134,7 +129,7 @@ export const TeacherDashboard: React.FC = () => {
     }
 
     return list;
-  }, [dashboardData, currentRoleScope, selectedCohortId, searchQuery]);
+  }, [dashboardData, selectedCohortId, searchQuery]);
 
   const toggleExpand = (projectId: string) => {
     setExpandedProjectId((prev) => (prev === projectId ? null : projectId));
@@ -210,7 +205,6 @@ export const TeacherDashboard: React.FC = () => {
           <div
             onClick={() => {
               if (activeRole !== 'Guide') switchRole('Guide');
-              setRoleFilter('Guide');
             }}
             className="rounded-xl border border-arctic-border bg-white/80 p-5 shadow-arctic-sm space-y-1 cursor-pointer hover:border-blue-300 transition-all"
           >
@@ -231,7 +225,6 @@ export const TeacherDashboard: React.FC = () => {
           <div
             onClick={() => {
               if (activeRole !== 'Evaluator') switchRole('Evaluator');
-              setRoleFilter('Evaluator');
             }}
             className="rounded-xl border border-arctic-border bg-white/80 p-5 shadow-arctic-sm space-y-1 cursor-pointer hover:border-cyan-300 transition-all"
           >
@@ -265,7 +258,7 @@ export const TeacherDashboard: React.FC = () => {
       )}
 
       {/* 3. DYNAMIC ROLE RESPONSIBILITY HIGHLIGHT BANNER */}
-      {currentRoleScope === 'Guide' ? (
+      {activeRole === 'Guide' ? (
         <div className="rounded-2xl border border-blue-200/90 bg-gradient-to-r from-blue-50/90 via-sky-50/60 to-white p-6 shadow-arctic-sm space-y-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
@@ -278,7 +271,7 @@ export const TeacherDashboard: React.FC = () => {
                     Guide Operational Scope & Mentorship Responsibilities
                   </h3>
                   <Badge variant="primary" size="sm">
-                    Active Mode
+                    Active Mode: Guide
                   </Badge>
                 </div>
                 <p className="text-xs text-blue-900/80 mt-0.5">
@@ -330,7 +323,7 @@ export const TeacherDashboard: React.FC = () => {
             </div>
           </div>
         </div>
-      ) : currentRoleScope === 'Evaluator' ? (
+      ) : activeRole === 'Evaluator' ? (
         <div className="rounded-2xl border border-cyan-200/90 bg-gradient-to-r from-cyan-50/90 via-teal-50/60 to-white p-6 shadow-arctic-sm space-y-4">
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-3">
@@ -340,14 +333,14 @@ export const TeacherDashboard: React.FC = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-bold text-cyan-950">
-                    Evaluator & DPRC Panel Responsibilities
+                    Evaluator Panel Responsibilities
                   </h3>
                   <Badge variant="cyan" size="sm">
-                    Active Mode
+                    Active Mode: Evaluator
                   </Badge>
                 </div>
                 <p className="text-xs text-cyan-950/80 mt-0.5">
-                  You are evaluating projects based on standardized rubrics (100 Marks Grand Total). Marks are student-specific.
+                  You are evaluating projects based on standardized institutional rubrics. Marks are student-specific.
                 </p>
               </div>
             </div>
@@ -357,24 +350,12 @@ export const TeacherDashboard: React.FC = () => {
             <div className="rounded-xl bg-white/90 border border-cyan-100 p-3 space-y-1 shadow-2xs">
               <div className="font-semibold text-cyan-950 flex items-center gap-1.5">
                 <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cyan-100 text-[10px] font-bold text-cyan-800">
-                  P1
-                </span>
-                Presentation-1 (6 Marks)
-              </div>
-              <p className="text-[11px] text-slate-600 leading-snug">
-                DPRC Member Review: Novelty (5M) & Technical Feasibility (5M), scaled to 6M.
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-white/90 border border-cyan-100 p-3 space-y-1 shadow-2xs">
-              <div className="font-semibold text-cyan-950 flex items-center gap-1.5">
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cyan-100 text-[10px] font-bold text-cyan-800">
                   P2
                 </span>
                 Presentation-2 (24 Marks)
               </div>
               <p className="text-[11px] text-slate-600 leading-snug">
-                Evaluator Review: Literature Gap (6M), Methodology (6M), Ethics (6M), Work Plan (6M).
+                Literature Gap (6M), Methodology (6M), Ethics (6M), Work Plan (6M).
               </p>
             </div>
 
@@ -401,59 +382,106 @@ export const TeacherDashboard: React.FC = () => {
                 Final Viva & Testing: Quality (8M), Testing (8M), Report (8M), Impact (8M), Viva (8M).
               </p>
             </div>
+
+            <div className="rounded-xl bg-white/90 border border-cyan-100 p-3 space-y-1 shadow-2xs">
+              <div className="font-semibold text-cyan-950 flex items-center gap-1.5">
+                <FileCheck className="h-3.5 w-3.5 text-cyan-600" />
+                Individual Scoring
+              </div>
+              <p className="text-[11px] text-slate-600 leading-snug">
+                Marks are strictly student-specific and attendance is verified per candidate.
+              </p>
+            </div>
           </div>
         </div>
       ) : (
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-arctic-sm text-xs text-slate-600 flex items-center gap-3">
-          <Layers className="h-5 w-5 text-arctic-primary" />
-          <span>Showing combined portfolio of all projects assigned to you across Guide and Evaluator panels.</span>
+        <div className="rounded-2xl border border-amber-200/90 bg-gradient-to-r from-amber-50/90 via-orange-50/60 to-white p-6 shadow-arctic-sm space-y-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
+                <Award className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-amber-950">
+                    {activeRole} Responsibilities
+                  </h3>
+                  <Badge variant="warning" size="sm">
+                    Active Mode: {activeRole}
+                  </Badge>
+                </div>
+                <p className="text-xs text-amber-950/80 mt-0.5">
+                  You are evaluating Presentation-1 (scaled to 6 Marks) as part of the Departmental Project Review Committee.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs">
+            <div className="rounded-xl bg-white/90 border border-amber-100 p-3 space-y-1 shadow-2xs">
+              <div className="font-semibold text-amber-950 flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-amber-600" />
+                Novelty & Innovation (5 Marks)
+              </div>
+              <p className="text-[11px] text-slate-600 leading-snug">
+                Assess original conceptualization, technical novelty, and problem statement uniqueness.
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-white/90 border border-amber-100 p-3 space-y-1 shadow-2xs">
+              <div className="font-semibold text-amber-950 flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-amber-600" />
+                Technical Feasibility (5 Marks)
+              </div>
+              <p className="text-[11px] text-slate-600 leading-snug">
+                Assess implementation feasibility, timeline realism, and proposed technology stack suitability.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
       {/* 4. FILTERING & SEARCH TOOLBAR */}
       <div className="rounded-xl border border-arctic-border bg-white/90 p-4 shadow-arctic-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         {/* Role Scope Switcher Pills */}
-        <div className="flex items-center gap-1 bg-slate-100/90 p-1 rounded-xl text-xs font-semibold">
-          <button
-            onClick={() => {
-              if (activeRole !== 'Guide') switchRole('Guide');
-              setRoleFilter('Guide');
-            }}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-              currentRoleScope === 'Guide'
-                ? 'bg-white text-arctic-primary shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <BookOpen className="h-3.5 w-3.5" />
-            <span>Guide ({dashboardData?.stats.guidedCount ?? 0})</span>
-          </button>
+        <div className="flex items-center gap-1.5 bg-slate-100/90 p-1 rounded-xl text-xs font-semibold flex-wrap">
+          {availableRoles.map((role) => {
+            const count =
+              role === 'Guide'
+                ? dashboardData?.stats.guidedCount ?? 0
+                : role === 'Evaluator'
+                ? dashboardData?.stats.evaluatedCount ?? 0
+                : role === 'DPRC Member 1'
+                ? dashboardData?.stats.dprc1Count ?? 0
+                : dashboardData?.stats.dprc2Count ?? 0;
 
-          <button
-            onClick={() => {
-              if (activeRole !== 'Evaluator') switchRole('Evaluator');
-              setRoleFilter('Evaluator');
-            }}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-              currentRoleScope === 'Evaluator'
-                ? 'bg-white text-cyan-700 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Award className="h-3.5 w-3.5" />
-            <span>Evaluator ({dashboardData?.stats.evaluatedCount ?? 0})</span>
-          </button>
+            const isSelected = activeRole === role;
 
-          <button
-            onClick={() => setRoleFilter('ALL')}
-            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
-              currentRoleScope === 'ALL'
-                ? 'bg-white text-arctic-text-main shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <span>All ({dashboardData?.stats.totalProjects ?? 0})</span>
-          </button>
+            return (
+              <button
+                key={role}
+                onClick={() => switchRole(role)}
+                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                  isSelected
+                    ? role === 'Guide'
+                      ? 'bg-white text-arctic-primary shadow-xs'
+                      : role === 'Evaluator'
+                      ? 'bg-white text-cyan-700 shadow-xs'
+                      : 'bg-white text-amber-800 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {role === 'Guide' ? (
+                  <BookOpen className="h-3.5 w-3.5" />
+                ) : (
+                  <Award className="h-3.5 w-3.5" />
+                )}
+                <span>
+                  {role} ({count})
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Cohort Select & Search Bar */}
@@ -555,11 +583,11 @@ export const TeacherDashboard: React.FC = () => {
             <p className="text-xs text-arctic-text-secondary leading-relaxed">
               {searchQuery
                 ? `No projects matched "${searchQuery}". Try a different project ID, student name, or roll number.`
-                : currentRoleScope === 'Guide'
+                : activeRole === 'Guide'
                 ? 'You do not have any projects assigned as Guide in this cohort.'
-                : currentRoleScope === 'Evaluator'
-                ? 'You do not have any projects assigned as Evaluator or DPRC Member in this cohort.'
-                : 'No projects found in the selected cohort.'}
+                : activeRole === 'Evaluator'
+                ? 'You do not have any projects assigned as Evaluator in this cohort.'
+                : `You do not have any projects assigned as ${activeRole} in this cohort.`}
             </p>
           </div>
           <div className="pt-2">
@@ -567,7 +595,6 @@ export const TeacherDashboard: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => {
-                setRoleFilter('ALL');
                 setSelectedCohortId('ALL');
                 setSearchQuery('');
               }}
@@ -805,145 +832,12 @@ export const TeacherDashboard: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Student Team Members Table */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold text-arctic-text-main uppercase tracking-wider flex items-center gap-1.5">
-                            <Users className="h-4 w-4 text-arctic-primary" />
-                            Team Members & Individual Evaluation Ledger
-                          </h4>
-                          <span className="text-[11px] text-arctic-text-muted">
-                            Member #1 is the official designated Team Leader
-                          </span>
-                        </div>
-
-                        <div className="overflow-x-auto rounded-xl border border-arctic-border bg-white shadow-2xs">
-                          <table className="w-full text-left text-xs border-collapse">
-                            <thead>
-                              <tr className="border-b border-arctic-border bg-slate-50/80 text-[11px] text-arctic-text-secondary font-semibold">
-                                <th className="p-3 w-12 text-center">#</th>
-                                <th className="p-3">Roll Number</th>
-                                <th className="p-3">Student Name</th>
-                                <th className="p-3 text-center">P1 Attendance</th>
-                                <th className="p-3 text-center">P1 Marks (6M)</th>
-                                <th className="p-3 text-center">P2 Attendance</th>
-                                <th className="p-3 text-center">P2 Marks (24M)</th>
-                                <th className="p-3 text-center">Grand Total</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-arctic-border/60">
-                              {project.members.map((member: ProjectMemberSummary) => {
-                                const p1Att = member.attendance['PRESENTATION_1'];
-                                const p2Att = member.attendance['PRESENTATION_2'];
-                                const p1Marks = member.marks['PRESENTATION_1']?.stageTotalMarks;
-                                const p2Marks = member.marks['PRESENTATION_2']?.stageTotalMarks;
-
-                                const grandTotal =
-                                  (p1Marks ? Number(p1Marks) : 0) +
-                                  (p2Marks ? Number(p2Marks) : 0);
-
-                                return (
-                                  <tr
-                                    key={member.studentId}
-                                    className="hover:bg-blue-50/30 transition-colors"
-                                  >
-                                    <td className="p-3 text-center font-mono text-[11px] text-arctic-text-muted">
-                                      {member.memberOrder}
-                                    </td>
-
-                                    <td className="p-3 font-mono font-semibold text-arctic-text-main text-[11px]">
-                                      {member.rollNumber}
-                                    </td>
-
-                                    <td className="p-3">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="font-semibold text-arctic-text-main">
-                                          {member.name}
-                                        </span>
-                                        {member.isTeamLeader && (
-                                          <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
-                                            <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
-                                            Team Leader
-                                          </span>
-                                        )}
-                                      </div>
-                                    </td>
-
-                                    {/* P1 Attendance */}
-                                    <td className="p-3 text-center">
-                                      {p1Att === 'PRESENT' ? (
-                                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200">
-                                          <Check className="h-2.5 w-2.5" />
-                                          Present
-                                        </span>
-                                      ) : p1Att === 'ABSENT' ? (
-                                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-rose-50 text-rose-700 text-[10px] font-semibold border border-rose-200">
-                                          <X className="h-2.5 w-2.5" />
-                                          Absent
-                                        </span>
-                                      ) : (
-                                        <span className="text-slate-400 text-[11px]">—</span>
-                                      )}
-                                    </td>
-
-                                    {/* P1 Marks */}
-                                    <td className="p-3 text-center font-mono font-bold text-arctic-text-main">
-                                      {p1Marks !== undefined && p1Marks !== null ? (
-                                        <span>{Number(p1Marks).toFixed(2)}</span>
-                                      ) : (
-                                        <span className="text-slate-400 font-normal">—</span>
-                                      )}
-                                    </td>
-
-                                    {/* P2 Attendance */}
-                                    <td className="p-3 text-center">
-                                      {p2Att === 'PRESENT' ? (
-                                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200">
-                                          <Check className="h-2.5 w-2.5" />
-                                          Present
-                                        </span>
-                                      ) : p2Att === 'ABSENT' ? (
-                                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-rose-50 text-rose-700 text-[10px] font-semibold border border-rose-200">
-                                          <X className="h-2.5 w-2.5" />
-                                          Absent
-                                        </span>
-                                      ) : (
-                                        <span className="text-slate-400 text-[11px]">—</span>
-                                      )}
-                                    </td>
-
-                                    {/* P2 Marks */}
-                                    <td className="p-3 text-center font-mono font-bold text-arctic-text-main">
-                                      {p2Marks !== undefined && p2Marks !== null ? (
-                                        <span>{Number(p2Marks).toFixed(2)}</span>
-                                      ) : (
-                                        <span className="text-slate-400 font-normal">—</span>
-                                      )}
-                                    </td>
-
-                                    {/* Grand Total */}
-                                    <td className="p-3 text-center font-mono font-extrabold text-arctic-primary">
-                                      {grandTotal > 0 ? (
-                                        <span>{grandTotal.toFixed(2)}</span>
-                                      ) : (
-                                        <span className="text-slate-400 font-normal">—</span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      {/* Footer Note */}
-                      <div className="flex items-center justify-between text-[11px] text-arctic-text-muted pt-1">
-                        <span>Attendance and marks records stored independently in Supabase.</span>
-                        <span className="font-medium text-arctic-primary">
-                          {project.members.length} verified enrolled students
-                        </span>
-                      </div>
+                      {/* Interactive Student Evaluation Editor */}
+                      <ProjectEvaluationEditor
+                        project={project}
+                        activeRole={activeRole}
+                        onSaved={fetchDashboardData}
+                      />
                     </div>
                   )}
                 </div>

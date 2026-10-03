@@ -67,6 +67,9 @@ export interface DashboardStats {
   totalProjects: number;
   guidedCount: number;
   evaluatedCount: number;
+  dprc1Count: number;
+  dprc2Count: number;
+  scopedProjectsCount: number;
   totalStudents: number;
 }
 
@@ -80,6 +83,7 @@ export interface TeacherCohort {
 
 export interface TeacherDashboardResponse {
   teacher: DashboardTeacherProfile;
+  activeRole: TeacherRole;
   stats: DashboardStats;
   availableRoles: TeacherRole[];
   cohorts: TeacherCohort[];

@@ -50,3 +50,52 @@ export const EVALUATION_GRAND_TOTAL_MAX = 100;
  */
 export const INITIAL_ACADEMIC_YEARS = ['2nd Year', '3rd Year'] as const;
 export type InitialAcademicYear = (typeof INITIAL_ACADEMIC_YEARS)[number];
+
+export const CANONICAL_EVALUATION_STAGES = [
+  'PRESENTATION_1',
+  'PRESENTATION_2',
+  'EVALUATION_2',
+  'EVALUATION_3',
+] as const;
+
+export type CanonicalEvaluationStage = (typeof CANONICAL_EVALUATION_STAGES)[number];
+export type EvaluationStageCode = 'P1' | 'P2' | 'E2' | 'E3';
+
+export interface EvaluationStageMeta {
+  stage: CanonicalEvaluationStage;
+  code: EvaluationStageCode;
+  name: string;
+  maxMarks: number;
+  description: string;
+}
+
+export const EVALUATION_STAGE_CONFIG: Record<CanonicalEvaluationStage, EvaluationStageMeta> = {
+  PRESENTATION_1: {
+    stage: 'PRESENTATION_1',
+    code: 'P1',
+    name: 'Presentation-1',
+    maxMarks: 6,
+    description: 'DPRC Novelty & Technical Feasibility',
+  },
+  PRESENTATION_2: {
+    stage: 'PRESENTATION_2',
+    code: 'P2',
+    name: 'Presentation-2',
+    maxMarks: 24,
+    description: 'Evaluator Rubric Review',
+  },
+  EVALUATION_2: {
+    stage: 'EVALUATION_2',
+    code: 'E2',
+    name: 'Evaluation-2',
+    maxMarks: 30,
+    description: 'Mid-Term Functional Evaluation',
+  },
+  EVALUATION_3: {
+    stage: 'EVALUATION_3',
+    code: 'E3',
+    name: 'Evaluation-3',
+    maxMarks: 40,
+    description: 'Final Defense, Viva & Documentation',
+  },
+};

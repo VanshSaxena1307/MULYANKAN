@@ -18,6 +18,15 @@ export const RoleBadge: React.FC<RoleBadgeProps> = ({ role, size = 'md' }) => {
     );
   }
 
+  if (role === 'DPRC Member 1' || role === 'DPRC Member 2') {
+    return (
+      <Badge variant="warning" size={size} className="gap-1.5 font-semibold">
+        <Award className="h-3 w-3 text-amber-700" />
+        <span>{role}</span>
+      </Badge>
+    );
+  }
+
   return (
     <Badge variant="cyan" size={size} className="gap-1.5 font-semibold">
       <Award className="h-3 w-3 text-cyan-600" />

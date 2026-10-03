@@ -1,4 +1,9 @@
-export const TEACHER_ROLES = ['Guide', 'Evaluator'] as const;
+export const TEACHER_ROLES = [
+  'Guide',
+  'Evaluator',
+  'DPRC Member 1',
+  'DPRC Member 2',
+] as const;
 export type TeacherRole = (typeof TEACHER_ROLES)[number];
 
 export const SYSTEM_ROLES = [...TEACHER_ROLES, 'Admin'] as const;

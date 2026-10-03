@@ -59,3 +59,83 @@ export interface EvaluationSession {
   attendance: Record<string, AttendanceStatus>; // rollNumber -> status
   marks: Record<string, StudentMarksRecord>;     // rollNumber -> marks
 }
+
+import {
+  CanonicalEvaluationStage,
+  EvaluationStageCode,
+} from '../constants/evaluation';
+import { TeacherRole } from '../constants/roles';
+
+/**
+ * Individual student row in the teacher evaluation editor.
+ */
+export interface EvaluationStudentRow {
+  studentId: string;
+  rollNumber: string;
+  name: string;
+  isTeamLeader: boolean;
+  memberOrder: number;
+  attendance: AttendanceStatus | null;
+  marks: number | null; // null if unentered, 0 if 0
+  remarks?: string | null;
+}
+
+/**
+ * Full payload returned by GET /api/teacher/projects/:id/evaluation
+ */
+export interface ProjectEvaluationDataResponse {
+  projectId: string;
+  projectCode: string;
+  title: string | null;
+  stage: CanonicalEvaluationStage;
+  stageCode: EvaluationStageCode;
+  stageName: string;
+  maxMarks: number;
+  activeRole: TeacherRole;
+  students: EvaluationStudentRow[];
+}
+
+/**
+ * Item for attendance update
+ */
+export interface UpdateAttendanceItem {
+  studentId: string;
+  status: AttendanceStatus;
+}
+
+export interface UpdateAttendanceRequest {
+  role: TeacherRole;
+  stage: string;
+  attendance: UpdateAttendanceItem[];
+}
+
+/**
+ * Item for marks update
+ */
+export interface UpdateMarksItem {
+  studentId: string;
+  marks: number | null; // null to clear/leave blank, number 0..maxMarks
+  remarks?: string | null;
+}
+
+export interface UpdateMarksRequest {
+  role: TeacherRole;
+  stage: string;
+  marks: UpdateMarksItem[];
+}
+
+/**
+ * Combined batch item for saving attendance and marks together
+ */
+export interface EvaluationBatchItem {
+  studentId: string;
+  attendance?: AttendanceStatus | null;
+  marks?: number | null;
+  remarks?: string | null;
+}
+
+export interface UpdateEvaluationBatchRequest {
+  role: TeacherRole;
+  stage: string;
+  records: EvaluationBatchItem[];
+}
