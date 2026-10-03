@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { TeacherRole, DEFAULT_TEACHER_ROLE } from '@mulyankan/shared';
 import { RoleSwitchModal } from '../components/role/RoleSwitchModal';
 
@@ -15,11 +15,16 @@ export interface CurrentTeacherUser {
 
 interface AuthContextType {
   activeRole: TeacherRole;
+  availableRoles: TeacherRole[];
+  setAvailableRoles: (roles: TeacherRole[]) => void;
   switchRole: (newRole: TeacherRole) => void;
   requestRoleSwitch: (targetRole: TeacherRole) => void;
   isAuthenticated: boolean;
   currentUser: CurrentTeacherUser | null;
   token: string | null;
+  sessionExpiredMessage: string | null;
+  clearSessionExpiredMessage: () => void;
+  handleUnauthorized: (message?: string) => void;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -27,9 +32,26 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeRole, setActiveRole] = useState<TeacherRole>(DEFAULT_TEACHER_ROLE);
+  const [activeRole, setActiveRole] = useState<TeacherRole>(() => {
+    const saved = localStorage.getItem('mulyankan_active_role');
+    return (saved as TeacherRole) || DEFAULT_TEACHER_ROLE;
+  });
+
+  const [availableRoles, setAvailableRolesState] = useState<TeacherRole[]>(() => {
+    const saved = localStorage.getItem('mulyankan_available_roles');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return ['Guide', 'Evaluator'];
+      }
+    }
+    return ['Guide', 'Evaluator'];
+  });
+
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [targetRole, setTargetRole] = useState<TeacherRole>('Evaluator');
+  const [sessionExpiredMessage, setSessionExpiredMessage] = useState<string | null>(null);
 
   const [token, setToken] = useState<string | null>(() => {
     return localStorage.getItem('mulyankan_token');
@@ -47,7 +69,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   });
 
-  // Optional: verify token on mount with /api/auth/me
+  const setAvailableRoles = useCallback((roles: TeacherRole[]) => {
+    if (roles && roles.length > 0) {
+      setAvailableRolesState(roles);
+      localStorage.setItem('mulyankan_available_roles', JSON.stringify(roles));
+      // If current active role is not in available roles, select first available role
+      setActiveRole((prev) => {
+        if (!roles.includes(prev)) {
+          const next = roles[0];
+          localStorage.setItem('mulyankan_active_role', next);
+          return next;
+        }
+        return prev;
+      });
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    setToken(null);
+    setCurrentUser(null);
+    localStorage.removeItem('mulyankan_token');
+    localStorage.removeItem('mulyankan_user');
+    localStorage.removeItem('mulyankan_active_role');
+    localStorage.removeItem('mulyankan_available_roles');
+  }, []);
+
+  const handleUnauthorized = useCallback((message = 'Your session has expired. Please sign in again.') => {
+    logout();
+    setSessionExpiredMessage(message);
+  }, [logout]);
+
+  const clearSessionExpiredMessage = useCallback(() => {
+    setSessionExpiredMessage(null);
+  }, []);
+
+  // Verify session on mount with /api/auth/me
   useEffect(() => {
     const verifySession = async () => {
       if (!token) return;
@@ -73,9 +129,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser(user);
             localStorage.setItem('mulyankan_user', JSON.stringify(user));
           }
-        } else {
-          // Token invalid or expired
-          logout();
+        } else if (res.status === 401) {
+          handleUnauthorized();
         }
       } catch (err) {
         console.warn('Session verification error:', err);
@@ -83,7 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     verifySession();
-  }, [token]);
+  }, [token, handleUnauthorized]);
 
   const requestRoleSwitch = (newRole: TeacherRole) => {
     if (newRole === activeRole) return;
@@ -93,9 +148,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const switchRole = (newRole: TeacherRole) => {
     setActiveRole(newRole);
+    localStorage.setItem('mulyankan_active_role', newRole);
   };
 
   const login = async (inputUserId: string, inputPassword: string): Promise<void> => {
+    setSessionExpiredMessage(null);
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: {
@@ -131,22 +188,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('mulyankan_user', JSON.stringify(user));
   };
 
-  const logout = () => {
-    setToken(null);
-    setCurrentUser(null);
-    localStorage.removeItem('mulyankan_token');
-    localStorage.removeItem('mulyankan_user');
-  };
-
   return (
     <AuthContext.Provider
       value={{
         activeRole,
+        availableRoles,
+        setAvailableRoles,
         switchRole,
         requestRoleSwitch,
-        isAuthenticated: !!currentUser,
+        isAuthenticated: !!currentUser && !!token,
         currentUser,
         token,
+        sessionExpiredMessage,
+        clearSessionExpiredMessage,
+        handleUnauthorized,
         login,
         logout,
       }}

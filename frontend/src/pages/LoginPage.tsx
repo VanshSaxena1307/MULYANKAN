@@ -21,7 +21,7 @@ import {
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, sessionExpiredMessage, clearSessionExpiredMessage } = useAuth();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -31,6 +31,21 @@ export const LoginPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+
+  // Automatically route authenticated users to Teacher Dashboard
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/teacher', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  // Handle incoming session expired notification
+  React.useEffect(() => {
+    if (sessionExpiredMessage) {
+      setError(sessionExpiredMessage);
+      clearSessionExpiredMessage();
+    }
+  }, [sessionExpiredMessage, clearSessionExpiredMessage]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -3,6 +3,7 @@ import cors from 'cors';
 import { env } from './config/env';
 import { healthRouter } from './routes/health.routes';
 import { authRouter } from './routes/auth.routes';
+import { teacherRouter } from './routes/teacher.routes';
 
 export const app = express();
 
@@ -17,6 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 // Base institutional API routers
 app.use('/api', healthRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/teacher', teacherRouter);
 
 app.get('/', (_req, res) => {
   res.json({

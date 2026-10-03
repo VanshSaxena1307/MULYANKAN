@@ -10,6 +10,7 @@ import {
   User,
   ExternalLink,
   Layers,
+  LogOut,
 } from 'lucide-react';
 
 interface AppShellProps {
@@ -17,10 +18,11 @@ interface AppShellProps {
 }
 
 export const AppShell: React.FC<AppShellProps> = ({ children }) => {
-  const { activeRole, requestRoleSwitch, currentUser } = useAuth();
+  const { activeRole, requestRoleSwitch, currentUser, logout, availableRoles } = useAuth();
   const location = useLocation();
 
   const otherRole = activeRole === 'Guide' ? 'Evaluator' : 'Guide';
+  const hasMultipleRoles = availableRoles.length > 1;
 
   return (
     <div className="min-h-screen flex flex-col bg-arctic-bg text-arctic-text-main">
@@ -28,7 +30,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       <header className="arctic-glass-header sticky top-0 z-40 w-full transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Brand & Platform Identity */}
-          <Link to="/" className="flex items-center gap-3.5 group">
+          <Link to="/teacher" className="flex items-center gap-3.5 group">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-arctic-primary to-blue-700 flex items-center justify-center text-white shadow-md shadow-arctic-primary/25 border border-white/40">
               <GraduationCap className="h-5 w-5" />
             </div>
@@ -57,20 +59,22 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                     Current Role:
                   </span>
                   <RoleBadge role={activeRole} size="sm" />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-xs text-arctic-text-secondary hover:text-arctic-primary hover:bg-blue-50/80 gap-1 rounded-md"
-                    onClick={() => requestRoleSwitch(otherRole)}
-                    title={`Switch role to ${otherRole}`}
-                  >
-                    <ArrowLeftRight className="h-3 w-3" />
-                    <span className="hidden sm:inline">Switch to {otherRole}</span>
-                  </Button>
+                  {hasMultipleRoles && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-arctic-text-secondary hover:text-arctic-primary hover:bg-blue-50/80 gap-1 rounded-md"
+                      onClick={() => requestRoleSwitch(otherRole)}
+                      title={`Switch role to ${otherRole}`}
+                    >
+                      <ArrowLeftRight className="h-3 w-3" />
+                      <span className="hidden sm:inline">Switch to {otherRole}</span>
+                    </Button>
+                  )}
                 </div>
 
                 {/* Faculty User Identifier */}
-                <div className="flex items-center gap-2 pl-2 border-l border-arctic-border">
+                <div className="flex items-center gap-2.5 pl-2 border-l border-arctic-border">
                   <div className="h-8 w-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-arctic-text-secondary">
                     <User className="h-4 w-4" />
                   </div>
@@ -82,6 +86,15 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
                       {currentUser.username}
                     </div>
                   </div>
+
+                  {/* Sign Out Button */}
+                  <button
+                    onClick={logout}
+                    title="Sign Out"
+                    className="p-1.5 rounded-lg text-arctic-text-muted hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
                 </div>
               </>
             )}

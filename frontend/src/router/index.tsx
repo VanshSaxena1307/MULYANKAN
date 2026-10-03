@@ -4,6 +4,8 @@ import { AppShell } from '../components/layout/AppShell';
 import { LoginPage } from '../pages/LoginPage';
 import { TeacherDashboard } from '../pages/TeacherDashboard';
 
+import { ProtectedRoute } from '../components/common/ProtectedRoute';
+
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -16,9 +18,11 @@ export const router = createBrowserRouter([
   {
     path: '/teacher',
     element: (
-      <AppShell>
-        <TeacherDashboard />
-      </AppShell>
+      <ProtectedRoute>
+        <AppShell>
+          <TeacherDashboard />
+        </AppShell>
+      </ProtectedRoute>
     ),
   },
   {
